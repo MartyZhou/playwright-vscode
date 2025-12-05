@@ -274,6 +274,14 @@ export class Extension implements RunHooks {
 
           await this._reusedBrowser.recordFromExistingTest(model, project, existingTestPath);
 
+          // Auto-save and rename the file with a proper name
+          const savedFile = await this._renameRecordedFile(file, existingTestPath, model, project);
+          if (savedFile) {
+            const document = await this._vscode.workspace.openTextDocument(savedFile);
+            await this._vscode.window.showTextDocument(document);
+          }
+
+          return savedFile;
         } finally {
           await this._settingsModel.showBrowser.set(showBrowser);
         }
@@ -857,6 +865,51 @@ test('test', async ({ page }) => {
     editor.selection = new this._vscode.Selection(new this._vscode.Position(3, 2), new this._vscode.Position(3, 2 + '// Recording...'.length));
 
     return file;
+  }
+
+  private async _renameRecordedFile(tempFile: string, sourceTestPath: string, model: TestModel, project: TestProject): Promise<string | undefined> {
+    // Extract a meaningful name from the source test path
+    const sourceBasename = path.basename(sourceTestPath, path.extname(sourceTestPath));
+    // Clean up the name: remove test_ prefix if present, convert to camelCase-friendly
+    const cleanName = sourceBasename.replace(/^test_/, '').replace(/_/g, '-');
+    const targetDir = project.project.testDir;
+
+    // Find an available filename
+    let newFile: string | undefined;
+    for (let i = 0; i < 100; ++i) {
+      const suffix = i === 0 ? '' : `-${i}`;
+      const candidate = path.join(targetDir, `${cleanName}${suffix}.spec.ts`);
+      if (!fs.existsSync(candidate) || candidate === tempFile) {
+        newFile = candidate;
+        break;
+      }
+    }
+
+    if (!newFile || newFile === tempFile)
+      return tempFile;
+
+    try {
+      // Save and close any open editor for the temp file
+      const tempDoc = this._vscode.workspace.textDocuments.find(doc => uriToPath(doc.uri) === tempFile);
+      if (tempDoc && tempDoc.isDirty)
+        await tempDoc.save();
+
+      // Rename the file
+      await fs.promises.rename(tempFile, newFile);
+
+      // Update the model
+      await model.handleWorkspaceChange({
+        created: new Set([newFile]),
+        changed: new Set(),
+        deleted: new Set([tempFile])
+      });
+      await model.ensureTests([newFile]);
+
+      return newFile;
+    } catch (error) {
+      console.error('Failed to rename recorded file:', error);
+      return tempFile; // Return original file on error
+    }
   }
 
   private async _showBrowserForRecording(file: string, project: TestProject) {

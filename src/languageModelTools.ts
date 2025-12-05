@@ -726,17 +726,18 @@ export class RecordFromExistingTestTool implements vscodeTypes.LanguageModelTool
     const { testPath } = options.input;
 
     try {
-      await this.vscode.commands.executeCommand('pw.extension.command.recordFromExistingTest', testPath);
+      const savedFilePath = await this.vscode.commands.executeCommand('pw.extension.command.recordFromExistingTest', testPath) as string | undefined;
+
+      let message = `Successfully recorded Playwright test from existing test: ${testPath}\n\n`;
+      if (savedFilePath)
+        message += `The recorded test has been saved to: ${savedFilePath}\n\n`;
+
+      message += 'The recording has been completed. The existing test ran in the Playwright browser, ' +
+        'and all actions were captured into a new Playwright test file. ' +
+        'The recording automatically stopped when the existing test finished.';
 
       return {
-        content: [
-          createTextPart(
-              `Successfully recorded Playwright test from existing test: ${testPath}\n\n` +
-              'The recording has been completed. The existing test ran in the Playwright browser, ' +
-              'and all actions were captured into a new Playwright test file. ' +
-              'The recording automatically stopped when the existing test finished.'
-          ),
-        ],
+        content: [createTextPart(message)],
       };
     } catch (error: any) {
       return {
