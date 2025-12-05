@@ -372,6 +372,6 @@ export const recordFromExistingTestAction = (vscode: vscodeTypes.VSCode, reusedB
     command: 'pw.extension.command.recordFromExistingTest',
     svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path d="M9 42h-3c-1.2 0-2.1-.9-2.1-2.1V8.1C3.9 6.9 4.8 6 6 6h36c1.2 0 2.1.9 2.1 2.1V18h-3V9H9v30h3v3Zm13-8.5v-3L34.5 18 22 30.5Zm12.5-12.5L45 33l-3 3-10.5-10.5 3-3Zm-13 13v-3h3l10-10 3 3-10 10h-6Z"/></svg>`,
     text: vscode.l10n.t('Record from Existing Test'),
-    disabled: !reusedBrowser.canRecord(),
+    disabled: !reusedBrowser.canRecordNew(),
   };
 };
