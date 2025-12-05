@@ -15,6 +15,7 @@ This extension integrates Playwright into your VS Code workflow. Here is what it
   - [Tune locators](#tune-locators)
   - [Record new tests](#record-new-tests)
   - [Record at cursor](#record-at-cursor)
+  - [AI-Powered Testing with Language Model Tools](#ai-powered-testing-with-language-model-tools)
 
 
 ![Playwright VS Code Extension](https://github.com/microsoft/playwright-vscode/assets/13063165/400a3f11-a1e8-4fe7-8ae6-b0460142de35)
@@ -95,5 +96,24 @@ Record new tests by clicking on the "record tests" button in the testing sidebar
 ## Record at cursor
 
 This generates actions into the existing test at the current cursor position. You can run the test, position the cursor at the end of the test and continue generating the test.
+
+## AI-Powered Testing with Language Model Tools
+
+The Playwright extension now includes language model tools that integrate with GitHub Copilot and other AI assistants. Use natural language to run tests, analyze failures, generate locators, and more!
+
+**Example commands:**
+- "Run all Playwright tests"
+- "Show me the test results from the last run"
+- "Generate a locator for the login button"
+- "What tests are in the authentication file?"
+
+For detailed information about the available tools and how to use them, see [Language Model Tools Documentation](LANGUAGE_MODEL_TOOLS.md).
+
+**Available Tools:**
+- 🚀 Run Playwright Tests (`#playwrightRunTests`)
+- 📋 List Playwright Tests (`#playwrightListTests`)
+- 🔍 Generate Playwright Locator (`#playwrightGenerateLocator`)
+- ✅ Get Test Results (`#playwrightGetTestResults`)
+- ⚙️ Get Configuration (`#playwrightGetConfig`)
 
 [Playwright]: https://playwright.dev "Playwright"

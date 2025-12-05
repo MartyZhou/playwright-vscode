@@ -29,6 +29,11 @@ export default defineConfig<WorkerOptions>({
     ['line']
   ],
   tag: process.env.PW_TAG,  // Set when running vscode extension tests in playwright repo CI.
+  use: {
+    launchOptions: {
+      args: ['--remote-debugging-port=19222']
+    },
+  },
   projects: [
     {
       name: 'default',

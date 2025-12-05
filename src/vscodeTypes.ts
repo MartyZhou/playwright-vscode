@@ -56,8 +56,42 @@ export type {
   WebviewViewResolveContext,
   WorkspaceConfiguration,
   TerminalLink,
+  MarkdownString,
 } from 'vscode';
 
 export type VSCode = typeof import('vscode') & {
   isUnderTest?: boolean;
 };
+
+// Language model tool types - local definitions for compatibility
+export interface LanguageModelTool<T> {
+  prepareInvocation(
+    options: LanguageModelToolInvocationPrepareOptions<T>,
+    token: import('vscode').CancellationToken
+  ): Promise<PreparedToolInvocation>;
+  invoke(
+    options: LanguageModelToolInvocationOptions<T>,
+    token: import('vscode').CancellationToken
+  ): Promise<LanguageModelToolResult>;
+}
+
+export interface LanguageModelToolInvocationOptions<T> {
+  input: T;
+  toolInvocationToken?: import('vscode').CancellationToken;
+}
+
+export interface LanguageModelToolInvocationPrepareOptions<T> {
+  input: T;
+}
+
+export interface LanguageModelToolResult {
+  content: Array<{ text: string }>;
+}
+
+export interface PreparedToolInvocation {
+  invocationMessage?: string;
+  confirmationMessages?: {
+    title: string;
+    message: import('vscode').MarkdownString;
+  };
+}

@@ -16,7 +16,7 @@
 
 import type { TestConfig } from './playwrightTestServer';
 import type { TestModel, TestModelCollection, TestProject } from './testModel';
-import { createGuid } from './utils';
+import { createGuid, uriToPath } from './utils';
 import * as vscodeTypes from './vscodeTypes';
 import { installBrowsers } from './installer';
 import { SettingsModel } from './settingsModel';
@@ -275,6 +275,23 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
     }, async (progress, token) => this._doRecord(progress, model, testIdAttributeName, token));
   }
 
+  async recordFromExistingTest(model: TestModel, project: TestProject, existingTestPath: string) {
+    if (!this._checkVersion(model.config))
+      return;
+    if (!this.canRecord()) {
+      void this._vscode.window.showWarningMessage(
+          this._vscode.l10n.t('Can\'t record while running tests')
+      );
+      return;
+    }
+    const testIdAttributeName = this._getTestIdAttribute(model, project);
+    await this._vscode.window.withProgress({
+      location: this._vscode.ProgressLocation.Notification,
+      title: 'Recording from existing test',
+      cancellable: true
+    }, async (progress, token) => this._doRecordFromExistingTest(progress, model, testIdAttributeName, existingTestPath, token));
+  }
+
   async highlight(selector: string) {
     await this._backend?.highlight({ selector });
     this._onHighlightRequestedForTestEvent.fire(selector);
@@ -338,6 +355,96 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
     progress.report({ message: 'recording\u2026' });
 
     await canceledPromise;
+  }
+
+  private async _doRecordFromExistingTest(progress: vscodeTypes.Progress<{ message?: string; increment?: number }>, model: TestModel, testIdAttributeName: string | undefined, existingTestPath: string, token: vscodeTypes.CancellationToken) {
+    await this._startBackendIfNeeded(model.config);
+    this._insertedEditActionCount = 0;
+
+    progress.report({ message: 'starting browser\u2026' });
+
+    // Register early to have this._cancelRecording assigned during re-entry.
+    const canceledPromise = Promise.race([
+      new Promise<void>(f => token.onCancellationRequested(f)),
+      new Promise<void>(f => this._cancelRecording = f),
+    ]);
+
+    try {
+      await this._backend?.setRecorderMode({
+        mode: 'recording',
+        testIdAttributeName,
+      });
+      this._recorderModeForTest = 'recording';
+    } catch (e) {
+      showExceptionAsUserError(this._vscode, model, e as Error);
+      this._stop();
+      return;
+    }
+
+    progress.report({ message: 'preparing existing test\u2026' });
+
+    const cdpPort = 19222;  // Base port, can be made configurable
+
+    progress.report({ message: 'running existing test\u2026' });
+
+    const workspaceFolders = this._vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      void this._vscode.window.showErrorMessage('No workspace folder found');
+      this._stop();
+      return;
+    }
+
+    const legacyTestsPath = workspaceFolders[0].uri;
+    const bridgeScript = this._vscode.Uri.joinPath(legacyTestsPath, 'run_selenium_with_playwright_cdp.py');
+    const testFile = this._vscode.Uri.joinPath(legacyTestsPath, existingTestPath);
+
+    // Construct the Python command
+    const terminal = this._vscode.window.createTerminal({
+      name: 'Existing Test → Playwright Recording',
+      cwd: uriToPath(legacyTestsPath),
+    });
+
+    terminal.show();
+
+    // Run the bridge script with CDP port
+    const pythonPath = process.platform === 'win32' ? 'venv\\Scripts\\python.exe' : 'venv/bin/python';
+    const command = `${pythonPath} "${uriToPath(bridgeScript)}" "${uriToPath(testFile)}" --cdp-port "${cdpPort}"`;
+    terminal.sendText(command);
+
+    // Monitor terminal output to detect test completion
+    let testCompletionResolver: (() => void) | undefined;
+    const testCompletionPromise = new Promise<void>(resolve => {
+      testCompletionResolver = resolve;
+    });
+
+    // Use shell integration to read terminal output if available
+    const disposable = this._vscode.window.onDidEndTerminalShellExecution?.(e => {
+      if (e.terminal === terminal) {
+        // Test execution completed
+        testCompletionResolver?.();
+      }
+    });
+
+    // Fallback: Poll terminal state or use timeout
+    const pollInterval = setInterval(() => {
+      // Check if terminal is still alive
+      if (terminal.exitStatus !== undefined) {
+        clearInterval(pollInterval);
+        testCompletionResolver?.();
+      }
+    }, 1000);
+
+    // Wait for test completion or manual cancellation
+    await Promise.race([canceledPromise, testCompletionPromise]);
+
+    // Cleanup
+    clearInterval(pollInterval);
+    if (disposable)
+      disposable.dispose();
+
+    // Small delay to ensure final actions are captured
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
   }
 
   private _onRecord() {

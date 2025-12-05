@@ -34,6 +34,7 @@ import { LocatorsView } from './locatorsView';
 import { pathToFileURL } from 'url';
 import { TestConfig } from './playwrightTestServer';
 import { findTestEndPosition } from './babelHighlightUtil';
+import { registerLanguageModelTools } from './languageModelTools';
 
 const stackUtils = new StackUtils({
   cwd: '/ensure_absolute_paths'
@@ -237,6 +238,43 @@ export class Extension implements RunHooks {
           return vscode.window.showWarningMessage(messageNoPlaywrightTestsFound);
         await this._reusedBrowser.record(model);
       }),
+      vscode.commands.registerCommand('pw.extension.command.recordFromExistingTest', async (testPath?: string) => {
+        const model = this._models.selectedModel();
+        if (!model)
+          return vscode.window.showWarningMessage(messageNoPlaywrightTestsFound);
+
+        const project = model.enabledProjects()[0];
+        if (!project)
+          return vscode.window.showWarningMessage(this._vscode.l10n.t(`Project is disabled in the Playwright sidebar.`));
+
+        let existingTestPath = testPath;
+        if (!existingTestPath) {
+          existingTestPath = await vscode.window.showInputBox({
+            prompt: this._vscode.l10n.t('Enter the path to the existing test file'),
+            placeHolder: 'existing_test.py',
+            value: 'existing_test.py'
+          });
+        }
+
+        if (!existingTestPath)
+          return;
+
+        const file = await this._createFileForNewTest(model, project);
+        if (!file)
+          return;
+
+        const showBrowser = this._settingsModel.showBrowser.get() ?? false;
+        try {
+          await this._settingsModel.showBrowser.set(true);
+
+          await this._showBrowserForRecording(file, project);
+
+          await this._reusedBrowser.recordFromExistingTest(model, project, existingTestPath);
+
+        } finally {
+          await this._settingsModel.showBrowser.set(showBrowser);
+        }
+      }),
       vscode.commands.registerCommand('pw.extension.command.toggleModels', async () => {
         this._settingsView.toggleModels();
       }),
@@ -294,6 +332,8 @@ export class Extension implements RunHooks {
     ]));
     this._disposables.push(configObserver);
     await this._rebuildModelsImmediately(false);
+
+    registerLanguageModelTools(this._context, this._vscode, this._models, this._testController, this._runProfile, this._debugProfile);
 
     this._context.subscriptions.push(this);
   }

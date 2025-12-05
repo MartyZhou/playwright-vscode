@@ -56,6 +56,12 @@
       },
       {
         "category": "Test",
+        "icon": "$(debug-alt)",
+        "command": "pw.extension.command.recordFromExistingTest",
+        "title": "Record from Existing Test"
+      },
+      {
+        "category": "Test",
         "icon": "$(gear)",
         "command": "pw.extension.command.toggleModels",
         "title": "%contributes.command.pw.extension.command.toggleModels%"
@@ -157,6 +163,143 @@
         }
       }
     },
+    "languageModelTools": [
+      {
+        "name": "playwright_runTests",
+        "displayName": "Run Playwright Tests",
+        "toolReferenceName": "playwrightRunTests",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(play)",
+        "userDescription": "Run Playwright tests by file path, test name, or project",
+        "modelDescription": "Runs Playwright tests in the workspace. Can run all tests, tests in a specific file, a specific test by name, or tests for a specific project. Returns test results including pass/fail status and error messages.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Optional: The relative path to the test file to run. If not provided, runs all tests."
+            },
+            "testName": {
+              "type": "string",
+              "description": "Optional: The name of a specific test to run. If provided with filePath, runs only that test."
+            },
+            "projectName": {
+              "type": "string",
+              "description": "Optional: The name of the Playwright project to run tests for (e.g., 'chromium', 'firefox', 'webkit')."
+            }
+          }
+        }
+      },
+      {
+        "name": "playwright_listTests",
+        "displayName": "List Playwright Tests",
+        "toolReferenceName": "playwrightListTests",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(list-tree)",
+        "userDescription": "List all Playwright tests in the workspace",
+        "modelDescription": "Lists all Playwright tests discovered in the workspace including file paths, test names, line numbers, and available projects. Useful for understanding the test structure before running specific tests.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Optional: Filter tests to a specific file path."
+            }
+          }
+        }
+      },
+      {
+        "name": "playwright_generateLocator",
+        "displayName": "Generate Playwright Locator",
+        "toolReferenceName": "playwrightGenerateLocator",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(symbol-method)",
+        "userDescription": "Generate a Playwright locator for a UI element",
+        "modelDescription": "Opens the Playwright inspector to generate a locator for a specific UI element. This tool helps create reliable test selectors by inspecting the application UI. Returns the generated locator string.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "description": {
+              "type": "string",
+              "description": "Description of the UI element to locate (e.g., 'login button', 'email input field')."
+            }
+          }
+        }
+      },
+      {
+        "name": "playwright_getTestResults",
+        "displayName": "Get Playwright Test Results",
+        "toolReferenceName": "playwrightGetTestResults",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(checklist)",
+        "userDescription": "Get the results of the last Playwright test run",
+        "modelDescription": "Retrieves the results from the most recent Playwright test run including passed tests, failed tests, error messages, and execution time. Useful for analyzing test failures and debugging.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "playwright_getConfig",
+        "displayName": "Get Playwright Configuration",
+        "toolReferenceName": "playwrightGetConfig",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(gear)",
+        "userDescription": "Get Playwright configuration information",
+        "modelDescription": "Retrieves the Playwright configuration including available projects, test directories, browser settings, and other configuration options. Useful for understanding the test setup.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "playwright_recordFromExistingTest",
+        "displayName": "Record from Existing Test",
+        "toolReferenceName": "playwrightRecordFromExistingTest",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(debug-alt)",
+        "userDescription": "Record Playwright test from existing test execution",
+        "modelDescription": "Starts a Playwright recording session and runs an existing test in the same browser. The existing test actions are recorded and converted into a new Playwright test file. Requires the test path relative to the existing test cases directory and a properly configured environment.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "testPath": {
+              "type": "string",
+              "description": "The path to the test file relative to the existing test cases directory."
+            }
+          },
+          "required": [
+            "testPath"
+          ]
+        }
+      },
+      {
+        "name": "playwright_debugTests",
+        "displayName": "Debug Playwright Tests",
+        "toolReferenceName": "playwrightDebugTests",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(debug)",
+        "userDescription": "Debug Playwright tests with breakpoints and step-through debugging",
+        "modelDescription": "Starts Playwright tests in debug mode, allowing step-through debugging with breakpoints. Can debug all tests, tests in a specific file, a specific test by name, or tests for a specific project. Useful for troubleshooting test failures.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Optional: The relative path to the test file to debug. If not provided, debugs all tests."
+            },
+            "testName": {
+              "type": "string",
+              "description": "Optional: The name of a specific test to debug. If provided with filePath, debugs only that test."
+            },
+            "projectName": {
+              "type": "string",
+              "description": "Optional: The name of the Playwright project to debug tests for (e.g., 'chromium', 'firefox', 'webkit')."
+            }
+          }
+        }
+      }
+    ],
     "viewsContainers": {
       "panel": [
         {
