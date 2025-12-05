@@ -16,6 +16,7 @@
 
 import type { TestConfig } from './playwrightTestServer';
 import type { TestModel, TestModelCollection, TestProject } from './testModel';
+import type * as reporterTypes from './upstream/reporter';
 import { createGuid, uriToPath } from './utils';
 import * as vscodeTypes from './vscodeTypes';
 import { installBrowsers } from './installer';
@@ -28,7 +29,7 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
   private _vscode: vscodeTypes.VSCode;
   private _backend: Backend | undefined;
   private _cancelRecording: (() => void) | undefined;
-  private _isRunningTests = false;
+  private _isRunningTests?: 'run' | 'debug';
   private _insertedEditActionCount = 0;
   private _envProvider: (configFile: string) => NodeJS.ProcessEnv;
   private _disposables: vscodeTypes.Disposable[] = [];
@@ -226,8 +227,8 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
     return this._recorderModeForTest;
   }
 
-  private _getTestIdAttribute(model: TestModel, project?: TestProject): string | undefined {
-    return project?.project?.use?.testIdAttribute ?? model.config.testIdAttributeName;
+  private _getTestIdAttribute(model: TestModel, project?: reporterTypes.FullProject): string | undefined {
+    return project?.use?.testIdAttribute ?? model.config.testIdAttributeName;
   }
 
   async inspect(models: TestModelCollection) {
@@ -236,7 +237,7 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
       return;
 
     await this._startBackendIfNeeded(selectedModel.config);
-    const testIdAttributeName = this._getTestIdAttribute(selectedModel, selectedModel.enabledProjects()[0]);
+    const testIdAttributeName = this._getTestIdAttribute(selectedModel, selectedModel.enabledProjects()[0]?.project);
     // Keep running, errors could be non-fatal.
     try {
       await this._backend?.setRecorderMode({
@@ -250,18 +251,22 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
     }
   }
 
-  canRecord() {
+  canRecordNew() {
     return !this._isRunningTests;
+  }
+
+  canRecordAtCursor() {
+    return !this._isRunningTests || this._isRunningTests === 'debug';
   }
 
   canClose() {
     return !this._isRunningTests && !!this._pageCount;
   }
 
-  async record(model: TestModel, project?: TestProject) {
+  async record(model: TestModel, project: reporterTypes.FullProject) {
     if (!this._checkVersion(model.config))
       return;
-    if (!this.canRecord()) {
+    if (this._isRunningTests === 'run') {
       void this._vscode.window.showWarningMessage(
           this._vscode.l10n.t('Can\'t record while running tests')
       );
@@ -278,13 +283,13 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
   async recordFromExistingTest(model: TestModel, project: TestProject, existingTestPath: string) {
     if (!this._checkVersion(model.config))
       return;
-    if (!this.canRecord()) {
+    if (!this.canRecordNew()) {
       void this._vscode.window.showWarningMessage(
           this._vscode.l10n.t('Can\'t record while running tests')
       );
       return;
     }
-    const testIdAttributeName = this._getTestIdAttribute(model, project);
+    const testIdAttributeName = this._getTestIdAttribute(model, project.project);
     await this._vscode.window.withProgress({
       location: this._vscode.ProgressLocation.Notification,
       title: 'Recording from existing test',
@@ -468,7 +473,7 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
     if (!this._checkVersion(config, 'Show & reuse browser'))
       return;
     this._pausedOnPagePause = false;
-    this._isRunningTests = true;
+    this._isRunningTests = debug ? 'debug' : 'run';
     this._onRunningTestsChangedEvent.fire(true);
     await this._startBackendIfNeeded(config);
   }
@@ -480,7 +485,7 @@ export class ReusedBrowser implements vscodeTypes.Disposable {
       if (!this._pageCount)
         this._stop();
     }
-    this._isRunningTests = false;
+    this._isRunningTests = undefined;
     this._onRunningTestsChangedEvent.fire(false);
   }
 
